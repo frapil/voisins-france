@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cut">
+<title>Les voisins de la France</title>
+<meta name="theme-color" content="#1d3a8a">
+<style>
+  :root {
+    --bg: #eaf4fb;
+    --sea: #bfe0f5;
+    --land: #f3ecd8;
+    --land-stroke: #b9ad8c;
+    --france: #4f7be0;
+    --ink: #1c2540;
+    --muted: #5b6684;
+    --card: #ffffff;
+    --good: #2fa84f;
+    --bad: #e0453a;
+    --gold: #f2b705;
+    --accent: #1d3a8a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 10px 16px; background: var(--accent); color: #fff;
+  }
+  header h1 { font-size: 1.15rem; margin: 0; flex: 1; white-space: nowrap; }
+  .pill {
+    background: rgba(255,255,255,.15); border-radius: 999px; padding: 4px 12px;
+    font-weight: bold; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  #score.bump { animation: bump .4s; }
+  #score.drop { animation: drop .4s; }
+  @keyframes bump { 50% { transform: scale(1.3); background: var(--good); } }
+  @keyframes drop { 50% { transform: scale(1.3); background: var(--bad); } }
+
+  #hud {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+    padding: 10px 16px; background: var(--card); box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    min-height: 64px; position: relative; z-index: 1;
+  }
+  #question { font-size: 1.35rem; text-align: center; }
+  #question b { color: var(--accent); font-size: 1.6rem; }
+  #tries { font-size: 1.4rem; letter-spacing: 2px; }
+  #tries .lost { filter: grayscale(1); opacity: .3; }
+  #timer {
+    position: absolute; left: 0; bottom: 0; height: 6px; width: 100%;
+    background: var(--good); transform-origin: left; transition: background .3s;
+  }
+  #timer.warn { background: var(--gold); }
+  #timer.danger { background: var(--bad); }
+  #seconds { font-size: 1.3rem; font-weight: bold; min-width: 3.2em; text-align: center; font-variant-numeric: tabular-nums; }
+  #seconds.danger { color: var(--bad); animation: blink .5s infinite alternate; }
+  @keyframes blink { to { opacity: .4; } }
+
+  main { flex: 1; position: relative; min-height: 0; }
+  svg#map { width: 100%; height: 100%; display: block; background: var(--sea); touch-action: manipulation; }
+  .country { fill: var(--land); stroke: var(--land-stroke); stroke-width: .8; cursor: pointer; transition: fill .2s; }
+  .country:hover { fill: #e6dbb8; }
+  .country.france { fill: var(--france); stroke: #2b4fa8; cursor: default; }
+  .country.found { fill: #8fd6a0; stroke: var(--good); }
+  .country.missed { fill: #f6b0a8; stroke: var(--bad); }
+  .country.wrong { animation: wrong .9s; }
+  .country.show { animation: show 1s 3; }
+  @keyframes wrong { 0%,100% { fill: var(--land); } 20%,60% { fill: var(--bad); } }
+  @keyframes show { 50% { fill: var(--gold); } }
+  .dot { fill: #fff; stroke: var(--ink); stroke-width: 1.5; cursor: pointer; }
+  .dot.found { fill: var(--good); stroke: #1b6b31; }
+  .dot.missed { fill: var(--bad); }
+  .dot.show { animation: dotshow 1s 3; }
+  @keyframes dotshow { 50% { fill: var(--gold); r: 16; } }
+  .hit { fill: transparent; cursor: pointer; }
+  .label { font-size: 17px; font-weight: bold; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; pointer-events: none; text-anchor: middle; }
+  .label.small { font-size: 14px; }
+  .label.france { fill: #fff; stroke: #2b4fa8; font-size: 22px; }
+
+  #toast {
+    position: absolute; left: 50%; top: 14px; transform: translateX(-50%) scale(.8);
+    background: var(--card); border-radius: 14px; padding: 10px 18px; font-size: 1.15rem; font-weight: bold;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18); opacity: 0; transition: .2s; pointer-events: none; text-align: center;
+    max-width: calc(100% - 32px);
+  }
+  #toast.on { opacity: 1; transform: translateX(-50%) scale(1); }
+  #toast.good { color: var(--good); }
+  #toast.bad { color: var(--bad); }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(20,30,60,.55); display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 10;
+  }
+  .overlay[hidden] { display: none; }
+  .card {
+    background: var(--card); border-radius: 22px; padding: 24px; max-width: 460px; width: 100%;
+    text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.25); max-height: 100%; overflow: auto;
+  }
+  .card h2 { margin: 0 0 8px; font-size: 1.6rem; color: var(--accent); }
+  .card p { margin: 8px 0; line-height: 1.4; }
+  .rules { text-align: left; background: var(--bg); border-radius: 12px; padding: 10px 14px 10px 32px; margin: 12px 0; }
+  .rules li { margin: 4px 0; }
+  .levels { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: bold; border: 0; border-radius: 12px; padding: 12px 18px; cursor: pointer;
+    background: var(--accent); color: #fff; font-size: 1.05rem;
+  }
+  button.secondary { background: var(--bg); color: var(--accent); }
+  button.level { background: var(--bg); color: var(--ink); border: 3px solid transparent; }
+  button.level.sel { border-color: var(--accent); background: #dbe6ff; }
+  button:active { transform: scale(.97); }
+  .big { font-size: 1.25rem; padding: 14px 28px; margin-top: 10px; }
+  .stars { font-size: 2.4rem; letter-spacing: 4px; margin: 6px 0; }
+  .final { font-size: 2.2rem; font-weight: bold; color: var(--accent); }
+  .recap { list-style: none; padding: 0; margin: 12px 0; text-align: left; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+  .recap li { white-space: nowrap; }
+  .best { color: var(--muted); font-size: .95rem; }
+  .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  #learnBar {
+    position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%);
+    background: var(--card); border-radius: 14px; padding: 10px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    display: flex; gap: 12px; align-items: center; max-width: calc(100% - 32px);
+  }
+  #learnBar[hidden] { display: none; }
+  @media (max-width: 520px) {
+    header h1 { font-size: 1rem; }
+    #question { font-size: 1.1rem; }
+    #question b { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🇫🇷 Les voisins de la France</h1>
+  <span class="pill" id="progress">–</span>
+  <span class="pill" id="score">0 pt</span>
+</header>
+<div id="hud">
+  <div id="question">Prêt ?</div>
+  <div id="tries" aria-label="essais"></div>
+  <div id="seconds"></div>
+  <div id="timer" style="transform: scaleX(0)"></div>
+</div>
+<main>
+  <svg id="map" role="img" aria-label="Carte de l'Europe"></svg>
+  <div id="toast"></div>
+  <div id="learnBar" hidden>
+    <span>France + ses <b>8 voisins</b></span>
+    <button id="learnPlay">Jouer !</button>
+  </div>
+</main>
+
+<div class="overlay" id="start">
+  <div class="card">
+    <h2>Les voisins de la France</h2>
+    <p>La France touche <b>8 pays</b> en Europe. Sauras-tu tous les retrouver sur la carte ?</p>
+    <ul class="rules">
+      <li>Un nom de pays apparaît : <b>clique dessus</b> sur la carte.</li>
+      <li>Tu as <b>3 essais</b> ❤️❤️❤️ et un minuteur ⏱️.</li>
+      <li>Bonne réponse : <b>+100 pts</b> + un bonus de rapidité.</li>
+      <li>Erreur : <b>−25 pts</b>.</li>
+    </ul>
+    <p><b>Choisis ton niveau :</b></p>
+    <div class="levels">
+      <button class="level" data-time="30">🐢 Facile<br><small>30 s</small></button>
+      <button class="level sel" data-time="20">🐇 Normal<br><small>20 s</small></button>
+      <button class="level" data-time="10">🚀 Expert<br><small>10 s</small></button>
+    </div>
+    <div class="row">
+      <button class="big secondary" id="learnBtn">📖 Réviser</button>
+      <button class="big" id="playBtn">▶ Jouer</button>
+    </div>
+    <p class="best" id="bestStart"></p>
+  </div>
+</div>
+
+<div class="overlay" id="end" hidden>
+  <div class="card">
+    <h2 id="endTitle">Bravo !</h2>
+    <div class="stars" id="stars"></div>
+    <div class="final" id="finalScore"></div>
+    <p class="best" id="bestEnd"></p>
+    <ul class="recap" id="recap"></ul>
+    <div class="row">
+      <button class="big secondary" id="againLearn">📖 Réviser</button>
+      <button class="big" id="again">🔁 Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<script src="carte.js"></script>
+<script>
+"use strict";
+
+const NEIGHBORS = ["Belgium", "Luxembourg", "Germany", "Switzerland", "Italy", "Monaco", "Andorra", "Spain"];
+const FR = {
+  France: "la France", Belgium: "la Belgique", Luxembourg: "le Luxembourg", Germany: "l'Allemagne",
+  Switzerland: "la Suisse", Italy: "l'Italie", Monaco: "Monaco", Andorra: "Andorre", Spain: "l'Espagne",
+  Portugal: "le Portugal", "United Kingdom": "le Royaume-Uni", Ireland: "l'Irlande", Netherlands: "les Pays-Bas",
+  Denmark: "le Danemark", Sweden: "la Suède", Poland: "la Pologne", Czechia: "la Tchéquie", Austria: "l'Autriche",
+  Liechtenstein: "le Liechtenstein", Slovakia: "la Slovaquie", Hungary: "la Hongrie", Slovenia: "la Slovénie",
+  Croatia: "la Croatie", "Bosnia and Herz.": "la Bosnie-Herzégovine", Serbia: "la Serbie", Montenegro: "le Monténégro",
+  Kosovo: "le Kosovo", Albania: "l'Albanie", Macedonia: "la Macédoine du Nord", Greece: "la Grèce",
+  Bulgaria: "la Bulgarie", Romania: "la Roumanie", Ukraine: "l'Ukraine", Belarus: "la Biélorussie",
+  Lithuania: "la Lituanie", Russia: "la Russie", Morocco: "le Maroc", Algeria: "l'Algérie", Tunisia: "la Tunisie",
+  "San Marino": "Saint-Marin", Vatican: "le Vatican", Malta: "Malte", Gibraltar: "Gibraltar",
+  Jersey: "Jersey", Guernsey: "Guernesey", "Isle of Man": "l'île de Man"
+};
+// Nom sans article, avec majuscule, pour l'affichage
+const bare = n => { const s = (FR[n] || n).replace(/^(la |le |les |l')/, ""); return s[0].toUpperCase() + s.slice(1); };
+
+const MAX_TRIES = 3, WRONG_PTS = 25, GOOD_PTS = 100;
+const $ = id => document.getElementById(id);
+const svg = $("map");
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs, parent) => {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+
+/* ---------- Carte ---------- */
+const { W, H, countries } = window.CARTE;
+// Cadrage : on montre surtout la France et ses voisins (zoom léger)
+// En mode portrait (téléphone), on zoome davantage sur la France et ses voisins
+function fitView() {
+  const r = svg.getBoundingClientRect();
+  const portrait = r.width && r.height && r.width / r.height < 1;
+  svg.setAttribute("viewBox", portrait ? "225 110 545 600" : `120 60 ${W - 240} ${H - 180}`);
+}
+svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+fitView();
+addEventListener("resize", fitView);
+const gLand = el("g", {}, svg), gDots = el("g", {}, svg), gLabels = el("g", {}, svg);
+const shapes = {}, dots = {}, info = {};
+
+for (const c of countries.sort((a, b) => b.area - a.area)) {
+  info[c.name] = c;
+  const p = el("path", { d: c.d, class: "country" + (c.name === "France" ? " france" : "") }, gLand);
+  p.dataset.name = c.name;
+  shapes[c.name] = p;
+}
+// Petits pays : un point visible + une grande zone cliquable autour
+for (const c of countries) {
+  if (!c.p) continue;
+  const g = el("g", {}, gDots);
+  el("circle", { cx: c.p[0], cy: c.p[1], r: 18, class: "hit" }, g).dataset.name = c.name;
+  const d = el("circle", { cx: c.p[0], cy: c.p[1], r: 6, class: "dot" }, g);
+  d.dataset.name = c.name;
+  dots[c.name] = d;
+}
+el("text", { x: info.France.l[0], y: info.France.l[1], class: "label france" }, gLabels).textContent = "FRANCE";
+
+svg.addEventListener("click", e => {
+  const name = e.target.dataset && e.target.dataset.name;
+  if (name) onPick(name);
+});
+
+function mark(name, cls) {
+  for (const node of [shapes[name], dots[name]]) {
+    if (!node) continue;
+    node.classList.remove(cls);
+    void node.getBBox(); // relance l'animation
+    node.classList.add(cls);
+  }
+}
+function addLabel(name) {
+  const c = info[name];
+  const pos = c.l || c.c;
+  const small = !!c.p;
+  // Décale l'étiquette des petits pays pour ne pas cacher le point
+  const offsets = { Monaco: [30, 22], Andorra: [-6, 28], Luxembourg: [52, -6] };
+  const o = offsets[name] || [0, 6];
+  const t = el("text", { x: pos[0] + o[0], y: pos[1] + o[1], class: "label" + (small ? " small" : "") }, gLabels);
+  t.textContent = bare(name);
+}
+function resetMap() {
+  for (const n in shapes) shapes[n].setAttribute("class", "country" + (n === "France" ? " france" : ""));
+  for (const n in dots) dots[n].setAttribute("class", "dot");
+  [...gLabels.querySelectorAll("text:not(.france)")].forEach(t => t.remove());
+}
+
+/* ---------- Sons (sans fichier) ---------- */
+let audio;
+function beep(freqs, dur = .12, type = "sine") {
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    let t = audio.currentTime;
+    for (const f of freqs) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(.18, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+      o.connect(g).connect(audio.destination); o.start(t); o.stop(t + dur);
+      t += dur * .8;
+    }
+  } catch (_) { /* pas de son, tant pis */ }
+}
+const sndGood = () => beep([660, 880, 1320], .12);
+const sndBad = () => beep([220, 160], .18, "square");
+const sndTick = () => beep([1000], .04, "triangle");
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg, kind) {
+  const t = $("toast");
+  t.textContent = msg; t.className = "on " + (kind || "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = "", 1800);
+}
+
+/* ---------- Partie ---------- */
+let timeLimit = 20, order = [], idx = 0, score = 0, tries = 0, results = [], deadline = 0, raf = 0, locked = true, lastSec = -1;
+
+function readBest() { try { return +localStorage.getItem("voisins-best-" + timeLimit) || 0; } catch (_) { return 0; } }
+function writeBest(v) { try { localStorage.setItem("voisins-best-" + timeLimit, v); } catch (_) {} }
+function showBestStart() {
+  const b = readBest();
+  $("bestStart").textContent = b ? `🏆 Record à ce niveau : ${b} pts` : "";
+}
+
+document.querySelectorAll(".level").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".level").forEach(x => x.classList.remove("sel"));
+  b.classList.add("sel");
+  timeLimit = +b.dataset.time;
+  showBestStart();
+}));
+showBestStart();
+
+function setScore(v, anim) {
+  score = Math.max(0, v);
+  const s = $("score");
+  s.textContent = score + " pt" + (score > 1 ? "s" : "");
+  if (anim) { s.classList.remove("bump", "drop"); void s.offsetWidth; s.classList.add(anim); }
+}
+function drawTries() {
+  $("tries").innerHTML = Array.from({ length: MAX_TRIES }, (_, i) =>
+    `<span class="${i < MAX_TRIES - tries ? "" : "lost"}">❤️</span>`).join("");
+}
+
+function startGame() {
+  $("start").hidden = true; $("end").hidden = true; $("learnBar").hidden = true;
+  resetMap();
+  order = NEIGHBORS.slice().sort(() => Math.random() - .5);
+  idx = 0; results = []; setScore(0);
+  nextQuestion();
+}
+
+function nextQuestion() {
+  if (idx >= order.length) return endGame();
+  tries = 0; locked = false; lastSec = -1;
+  const name = order[idx];
+  $("progress").textContent = `Pays ${idx + 1} / ${order.length}`;
+  $("question").innerHTML = `Où se trouve <b>${bare(name)}</b> ?`;
+  drawTries();
+  deadline = performance.now() + timeLimit * 1000;
+  cancelAnimationFrame(raf);
+  tick();
+}
+
+function tick() {
+  const left = Math.max(0, deadline - performance.now()) / 1000;
+  const ratio = left / timeLimit;
+  const bar = $("timer"), sec = $("seconds");
+  bar.style.transform = `scaleX(${ratio})`;
+  bar.className = ratio < .25 ? "danger" : ratio < .5 ? "warn" : "";
+  const s = Math.ceil(left);
+  sec.textContent = "⏱️ " + s;
+  sec.className = s <= 5 ? "danger" : "";
+  if (s !== lastSec && s <= 5 && s > 0) sndTick();
+  lastSec = s;
+  if (left <= 0) return fail("⏰ Temps écoulé !");
+  raf = requestAnimationFrame(tick);
+}
+
+function onPick(name) {
+  if (locked || name === "France") return;
+  const target = order[idx];
+  if (name === target) {
+    locked = true; cancelAnimationFrame(raf);
+    const left = Math.max(0, deadline - performance.now()) / 1000;
+    const bonus = Math.round(left / timeLimit * 50);
+    const gained = GOOD_PTS + bonus;
+    setScore(score + gained, "bump");
+    results.push({ name, ok: true, tries: tries + 1 });
+    mark(name, "found"); addLabel(name); sndGood();
+    toast(`✅ Bravo ! +${gained} pts` + (tries === 0 ? " 🌟" : ""), "good");
+    idx++;
+    setTimeout(nextQuestion, 1400);
+  } else {
+    tries++;
+    setScore(score - WRONG_PTS, "drop");
+    drawTries(); sndBad();
+    // Pays déjà trouvé : on le rappelle sans le colorier en rouge
+    if (!shapes[name] || !shapes[name].classList.contains("found")) mark(name, "wrong");
+    if (tries >= MAX_TRIES) return fail(`❌ Non, ça c'est ${FR[name] || name}.`);
+    toast(`❌ Non, ça c'est ${FR[name] || name} ! −${WRONG_PTS} pts`, "bad");
+  }
+}
+
+function fail(msg) {
+  locked = true; cancelAnimationFrame(raf);
+  const name = order[idx];
+  results.push({ name, ok: false });
+  toast(`${msg} ${bare(name)} est ici 👉`, "bad");
+  mark(name, "missed"); mark(name, "show"); addLabel(name);
+  idx++;
+  setTimeout(nextQuestion, 2800);
+}
+
+function endGame() {
+  locked = true;
+  $("question").textContent = "Partie terminée !";
+  $("seconds").textContent = ""; $("tries").innerHTML = "";
+  $("timer").style.transform = "scaleX(0)";
+  const found = results.filter(r => r.ok).length;
+  const perfect = results.filter(r => r.ok && r.tries === 1).length;
+  const stars = found === 8 && perfect === 8 ? 3 : found >= 6 ? 2 : found >= 3 ? 1 : 0;
+  $("stars").textContent = "⭐".repeat(stars) + "☆".repeat(3 - stars);
+  $("endTitle").textContent = stars === 3 ? "Parfait ! 🎉" : stars === 2 ? "Très bien ! 👏" : stars === 1 ? "Pas mal ! 💪" : "Continue de t'entraîner ! 📚";
+  $("finalScore").textContent = `${score} points — ${found}/8 pays`;
+  const best = readBest();
+  if (score > best) { writeBest(score); $("bestEnd").textContent = "🏆 Nouveau record !"; }
+  else $("bestEnd").textContent = `🏆 Record : ${best} pts`;
+  $("recap").innerHTML = NEIGHBORS.map(n => {
+    const r = results.find(x => x.name === n);
+    return `<li>${r && r.ok ? "✅" : "❌"} ${bare(n)}</li>`;
+  }).join("");
+  if (stars === 3) beep([523, 659, 784, 1047], .18);
+  setTimeout(() => { $("end").hidden = false; }, 900);
+}
+
+/* ---------- Mode révision ---------- */
+function learn() {
+  $("start").hidden = true; $("end").hidden = true;
+  cancelAnimationFrame(raf); locked = true;
+  resetMap();
+  for (const n of NEIGHBORS) { mark(n, "found"); addLabel(n); }
+  $("progress").textContent = "Révision";
+  $("question").innerHTML = "Regarde bien les <b>8 voisins</b> !";
+  $("tries").innerHTML = ""; $("seconds").textContent = "";
+  $("timer").style.transform = "scaleX(0)";
+  $("learnBar").hidden = false;
+}
+
+$("playBtn").addEventListener("click", startGame);
+$("again").addEventListener("click", startGame);
+$("learnPlay").addEventListener("click", startGame);
+$("learnBtn").addEventListener("click", learn);
+$("againLearn").addEventListener("click", learn);
+</script>
+</body>
+</html>
