@@ -183,7 +183,7 @@
     <h2>Géo Europe 🌍</h2>
     <h3>Que veux-tu réviser ?</h3>
     <div class="opts" data-group="mode">
-      <button class="opt sel" data-v="pays">🗺️ Pays voisins<br><small>de la France</small></button>
+      <button class="opt sel" data-v="pays">🗺️ Pays<br><small>« Où est l'Italie ? »</small></button>
       <button class="opt" data-v="cap">🏛️ Capitales</button>
     </div>
 
@@ -193,11 +193,11 @@
         <button class="opt sel" data-v="ou">📍 Où est… ?<br><small>« Où est Berlin ? »</small></button>
         <button class="opt" data-v="quelle">🔤 Quelle capitale ?<br><small>4 réponses au choix</small></button>
       </div>
-      <h3>Quels pays ?</h3>
-      <div class="opts" data-group="zone">
-        <button class="opt sel" data-v="voisins">🇫🇷 Voisins<br><small>8 pays</small></button>
-        <button class="opt" data-v="ue">🇪🇺 Union européenne<br><small>27 pays</small></button>
-      </div>
+    </div>
+    <h3>Quels pays ?</h3>
+    <div class="opts" data-group="zone">
+      <button class="opt sel" data-v="voisins">🇫🇷 Voisins<br><small>8 pays</small></button>
+      <button class="opt" data-v="ue">🇪🇺 UE + Royaume-Uni<br><small id="ueCount">28 pays</small></button>
     </div>
 
     <ul class="rules" id="rules"></ul>
@@ -267,17 +267,20 @@ const DATA = {
   Slovakia: ["la Slovaquie", "Bratislava", ["Košice"]],
   Slovenia: ["la Slovénie", "Ljubljana", ["Maribor"]],
   Sweden: ["la Suède", "Stockholm", ["Göteborg"]],
-  Czechia: ["la Tchéquie", "Prague", ["Brno"]]
+  Czechia: ["la Tchéquie", "Prague", ["Brno"]],
+  "United Kingdom": ["le Royaume-Uni", "Londres", ["Manchester", "Liverpool"]]
 };
 const NEIGHBORS = ["Belgium", "Luxembourg", "Germany", "Switzerland", "Italy", "Monaco", "Andorra", "Spain"];
 const EU = ["Germany", "Austria", "Belgium", "Bulgaria", "Cyprus", "Croatia", "Denmark", "Spain", "Estonia", "Finland",
   "France", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands",
   "Poland", "Portugal", "Romania", "Slovakia", "Slovenia", "Sweden", "Czechia"];
+// Série « UE » : les 27 pays de l'Union européenne + le Royaume-Uni (qui n'en fait plus partie depuis 2020)
+const EU_PLUS = EU.concat(["United Kingdom"]);
 const EU_PER_GAME = 12;
 
 // Noms français des autres pays de la carte (pour dire « ça c'est… »)
 const OTHER = {
-  "United Kingdom": "le Royaume-Uni", Norway: "la Norvège", Iceland: "l'Islande", Liechtenstein: "le Liechtenstein",
+  Norway: "la Norvège", Iceland: "l'Islande", Liechtenstein: "le Liechtenstein",
   "Bosnia and Herz.": "la Bosnie-Herzégovine", Serbia: "la Serbie", Montenegro: "le Monténégro", Kosovo: "le Kosovo",
   Albania: "l'Albanie", Macedonia: "la Macédoine du Nord", Ukraine: "l'Ukraine", Belarus: "la Biélorussie",
   Moldova: "la Moldavie", Russia: "la Russie", Turkey: "la Turquie", Morocco: "le Maroc", Algeria: "l'Algérie",
@@ -316,9 +319,11 @@ const el = (tag, attrs, parent) => {
 const cfg = { mode: "pays", qtype: "ou", zone: "voisins", level: 20 };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem("geo-cfg") || "{}")); } catch (_) {}
 const saveCfg = () => { try { localStorage.setItem("geo-cfg", JSON.stringify(cfg)); } catch (_) {} };
-const gameKey = () => cfg.mode === "pays" ? "pays" : `cap-${cfg.qtype}-${cfg.zone}`;
-const zoneList = () => cfg.mode === "pays" || cfg.zone === "voisins" ? NEIGHBORS : EU;
-const viewName = () => cfg.mode === "pays" || cfg.zone === "voisins" ? "voisins" : "europe";
+// La clé des records garde l'ancien nom « pays » pour les voisins
+const gameKey = () => cfg.mode === "pays" ? (cfg.zone === "ue" ? "pays-ue" : "pays") : `cap-${cfg.qtype}-${cfg.zone}`;
+// En jeu « pays », la France n'est pas demandée (elle est déjà en bleu)
+const zoneList = () => cfg.zone === "voisins" ? NEIGHBORS : cfg.mode === "pays" ? EU_PLUS.filter(n => n !== "France") : EU_PLUS;
+const viewName = () => cfg.zone === "voisins" ? "voisins" : "europe";
 
 /* ---------- Carte ---------- */
 const { countries, views, capitals } = window.CARTE;
@@ -370,9 +375,11 @@ function drawLabels() {
 function addLabel(text, x, y, dx, dy, size, cls) { labels.push({ text, x, y, dx, dy, size, cls }); drawLabels(); }
 function addCountryLabel(name) {
   const c = info[name], pos = c.l || c.p;
-  const offsets = { Monaco: [26, 18], Andorra: [-4, 22], Luxembourg: [44, -4] };
-  const o = offsets[name] || [0, 6];
-  addLabel(bare(name), pos[0], pos[1], o[0], o[1], c.p ? 13 : 16);
+  const offsets = cfg.zone === "ue"
+    ? { Luxembourg: [10, 22], Belgium: [-20, 2], Germany: [6, -4], Netherlands: [-4, 2], Slovenia: [-18, -2], Croatia: [14, 10] }
+    : { Monaco: [26, 18], Andorra: [-4, 22], Luxembourg: [44, -4] };
+  const o = offsets[name] || (c.p ? [0, 20] : [0, 6]);
+  addLabel(bare(name), pos[0], pos[1], o[0], o[1], c.p || cfg.zone === "ue" ? 13 : 16);
 }
 function addCapital(name) {
   const p = capitals[name];
@@ -402,7 +409,7 @@ function mark(name, cls) {
 }
 const unmark = (name, cls) => [shapes[name], dots[name]].forEach(n => n && n.classList.remove(cls));
 function resetMap() {
-  const zone = new Set(cfg.mode === "cap" && cfg.zone === "ue" ? EU : []);
+  const zone = new Set(cfg.zone === "ue" ? EU_PLUS : []);
   for (const n in shapes) {
     const base = ALIAS[n] || n;
     shapes[n].setAttribute("class", "country" + (n === "France" ? " france" : zone.size && !zone.has(base) ? " dim" : ""));
@@ -448,9 +455,11 @@ function refreshMenu() {
     g.querySelectorAll(".opt").forEach(b => b.classList.toggle("sel", b.dataset.v === v));
   });
   $("capOpts").hidden = cfg.mode !== "cap";
-  const n = cfg.mode === "pays" || cfg.zone === "voisins" ? 8 : EU_PER_GAME;
+  $("ueCount").textContent = cfg.mode === "pays" ? "27 pays (sans la France)" : "28 pays";
+  const n = cfg.zone === "voisins" ? 8 : EU_PER_GAME;
   const rules = cfg.mode === "pays"
-    ? ["La France touche <b>8 pays</b> en Europe.", "Un nom de pays apparaît : <b>clique dessus</b> sur la carte."]
+    ? [cfg.zone === "voisins" ? "La France touche <b>8 pays</b> en Europe." : `Les pays de l'<b>Union européenne</b> et le <b>Royaume-Uni</b> : ${n} pays par partie.`,
+       "Un nom de pays apparaît : <b>clique dessus</b> sur la carte."]
     : cfg.qtype === "ou"
       ? ["Une capitale apparaît : <b>clique sur son pays</b>.", `${n} capitales à trouver.`]
       : ["Un pays clignote : <b>choisis sa capitale</b> parmi 4 réponses.", `${n} pays à faire.` + (cfg.zone === "ue" ? " Attention aux pièges !" : "")];
@@ -492,15 +501,16 @@ function clearHud(text) {
   $("choices").innerHTML = ""; $("timer").style.transform = "scaleX(0)";
 }
 function setTitle() {
-  $("title").textContent = cfg.mode === "pays" ? "🇫🇷 Les voisins de la France"
-    : cfg.zone === "ue" ? "🇪🇺 Capitales de l'UE" : "🏛️ Capitales des voisins";
+  $("title").textContent = cfg.mode === "pays"
+    ? (cfg.zone === "ue" ? "🇪🇺 Les pays d'Europe" : "🇫🇷 Les voisins de la France")
+    : cfg.zone === "ue" ? "🇪🇺 Capitales d'Europe" : "🏛️ Capitales des voisins";
 }
 
 function startGame() {
   $("start").hidden = true; $("end").hidden = true; $("learnBar").hidden = true;
   setTitle(); resetMap();
   const list = shuffle(zoneList());
-  order = cfg.mode === "cap" && cfg.zone === "ue" ? list.slice(0, EU_PER_GAME) : list;
+  order = cfg.zone === "ue" ? list.slice(0, EU_PER_GAME) : list;
   idx = 0; results = []; setScore(0);
   nextQuestion();
 }
@@ -656,8 +666,10 @@ function learn() {
     if (cfg.mode === "pays") addCountryLabel(n); else addCapital(n);
   }
   $("progress").textContent = "Révision";
-  clearHud(cfg.mode === "pays" ? "Regarde bien les <b>8 voisins</b> !" : `Regarde bien les <b>${list.length} capitales</b> !`);
-  $("learnText").innerHTML = cfg.mode === "pays" ? "France + ses <b>8 voisins</b>" : "Touche un pays : sa capitale s'affiche";
+  clearHud(cfg.mode === "cap" ? `Regarde bien les <b>${list.length} capitales</b> !`
+    : cfg.zone === "voisins" ? "Regarde bien les <b>8 voisins</b> !" : `Regarde bien ces <b>${list.length} pays</b> !`);
+  $("learnText").innerHTML = cfg.mode === "cap" ? "Touche un pays : sa capitale s'affiche"
+    : cfg.zone === "voisins" ? "France + ses <b>8 voisins</b>" : "UE (27 pays) + Royaume-Uni";
   $("learnBar").hidden = false;
 }
 // En révision des capitales : cliquer un pays rappelle sa capitale

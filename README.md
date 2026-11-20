@@ -6,11 +6,15 @@ Un petit jeu web pour réviser la géographie de l'Europe : les **pays voisins d
 
 Au menu, on choisit :
 
-- **🗺️ Pays voisins** : le nom d'un des 8 pays limitrophes de la France s'affiche (Belgique, Luxembourg, Allemagne, Suisse, Italie, Monaco, Andorre, Espagne) ; il faut cliquer dessus sur la carte.
+- **🗺️ Pays** : le nom d'un pays s'affiche ; il faut cliquer dessus sur la carte.
 - **🏛️ Capitales**, avec deux types de questions :
   - **📍 Où est… ?** : une capitale s'affiche (« Où est Berlin ? ») ; il faut cliquer sur son pays.
-  - **🔤 Quelle capitale ?** : un pays clignote sur la carte ; il faut choisir sa capitale parmi 4 réponses (avec des pièges : Genève, Milan, Barcelone, Rotterdam…).
-  - Deux séries : les **8 voisins** de la France, ou les **27 pays de l'Union européenne** (12 questions tirées au hasard par partie).
+  - **🔤 Quelle capitale ?** : un pays clignote sur la carte ; il faut choisir sa capitale parmi 4 réponses (avec des pièges : Genève, Milan, Barcelone, Rotterdam, Manchester…).
+
+Et pour chacun, deux séries :
+
+- **🇫🇷 Voisins** : les 8 pays limitrophes de la France (Belgique, Luxembourg, Allemagne, Suisse, Italie, Monaco, Andorre, Espagne).
+- **🇪🇺 UE + Royaume-Uni** : les 27 pays de l'Union européenne et le Royaume-Uni (12 questions tirées au hasard par partie ; la France n'est pas demandée dans le jeu des pays).
 
 ## Règles
 
