@@ -93,6 +93,35 @@
   .dot.show { animation: dotshow 1s 3; }
   @keyframes dotshow { 50% { fill: var(--gold); } }
   .hit { fill: transparent; cursor: pointer; }
+  /* Mode « fleuves, montagnes, mers » */
+  svg:not(.nature) .natlayer, svg.nature .dotlayer { display: none; }
+  svg.nature .country { cursor: default; }
+  svg.nature .country:hover { fill: var(--land); }
+  svg.nature .country.france, svg.nature .country.france:hover { fill: #dce6fb; stroke: #7d9ad8; }
+  .feat { cursor: pointer; vector-effect: non-scaling-stroke; }
+  .feat.fleuve { fill: none; stroke: #1f74d0; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+  .feat.fleuve:hover { stroke: #0b4f9c; stroke-width: 5; }
+  .feat.fleuve.found { stroke: var(--good); stroke-width: 5; }
+  .feat.fleuve.missed { stroke: var(--bad); stroke-width: 5; }
+  .feat.fleuve.wrong { animation: swrong .9s; }
+  .feat.fleuve.show { animation: sshow 1s 3; }
+  @keyframes swrong { 20%,60% { stroke: var(--bad); stroke-width: 6; } }
+  @keyframes sshow { 50% { stroke: var(--gold); stroke-width: 8; } }
+  .riverhit { fill: none; stroke: transparent; stroke-width: 22; vector-effect: non-scaling-stroke; cursor: pointer; pointer-events: stroke; stroke-linecap: round; }
+  .feat.massif { fill: #a0703c; fill-opacity: .5; stroke: #7a5228; stroke-width: 1; }
+  .feat.massif:hover { fill-opacity: .75; }
+  .feat.mer { fill: #ffffff; fill-opacity: 0; stroke: none; }
+  .feat.mer:hover { fill-opacity: .3; }
+  .feat.massif.found, .feat.mer.found { fill: var(--good); fill-opacity: .45; }
+  .feat.massif.missed, .feat.mer.missed { fill: var(--bad); fill-opacity: .45; }
+  .feat.mer.found, .feat.mer.missed { fill-opacity: .2; }
+  .feat.massif.wrong, .feat.mer.wrong { animation: fwrong .9s; }
+  .feat.massif.show, .feat.mer.show { animation: fshow 1s 3; }
+  @keyframes fwrong { 20%,60% { fill: var(--bad); fill-opacity: .7; } }
+  @keyframes fshow { 50% { fill: var(--gold); fill-opacity: .8; } }
+  .label.fleuve { fill: #0b4f9c; font-style: italic; }
+  .label.mer { fill: #0b4f9c; font-style: italic; letter-spacing: .5px; }
+  .label.massif { fill: #5e3d17; }
   .cap { fill: var(--accent); stroke: #fff; stroke-width: 2; vector-effect: non-scaling-stroke; pointer-events: none; }
   .label { font-weight: bold; fill: var(--ink); paint-order: stroke; stroke: #fff; stroke-linejoin: round; pointer-events: none; text-anchor: middle; }
   .label.capname { fill: var(--accent); }
@@ -185,6 +214,16 @@
     <div class="opts" data-group="mode">
       <button class="opt sel" data-v="pays">🗺️ Pays<br><small>« Où est l'Italie ? »</small></button>
       <button class="opt" data-v="cap">🏛️ Capitales</button>
+      <button class="opt" data-v="nature">🏞️ Fleuves, montagnes, mers<br><small>de la France</small></button>
+    </div>
+    <div id="natOpts" hidden>
+      <h3>Quoi ?</h3>
+      <div class="opts" data-group="cat">
+        <button class="opt sel" data-v="tout">🇫🇷 Tout<br><small>15</small></button>
+        <button class="opt" data-v="fleuves">🌊 Fleuves<br><small>5</small></button>
+        <button class="opt" data-v="montagnes">⛰️ Montagnes<br><small>6</small></button>
+        <button class="opt" data-v="mers">🐳 Mers et océan<br><small>4</small></button>
+      </div>
     </div>
 
     <div id="capOpts" hidden>
@@ -194,10 +233,12 @@
         <button class="opt" data-v="quelle">🔤 Quelle capitale ?<br><small>4 réponses au choix</small></button>
       </div>
     </div>
-    <h3>Quels pays ?</h3>
-    <div class="opts" data-group="zone">
-      <button class="opt sel" data-v="voisins">🇫🇷 Voisins<br><small>8 pays</small></button>
-      <button class="opt" data-v="ue">🇪🇺 UE + Royaume-Uni<br><small id="ueCount">28 pays</small></button>
+    <div id="zoneOpts">
+      <h3>Quels pays ?</h3>
+      <div class="opts" data-group="zone">
+        <button class="opt sel" data-v="voisins">🇫🇷 Voisins<br><small>8 pays</small></button>
+        <button class="opt" data-v="ue">🇪🇺 UE + Royaume-Uni<br><small id="ueCount">28 pays</small></button>
+      </div>
     </div>
 
     <ul class="rules" id="rules"></ul>
@@ -291,7 +332,17 @@ const OTHER = {
 // Territoires rattachés à un pays pour les clics
 const ALIAS = { "N. Cyprus": "Cyprus", "Cyprus U.N. Buffer Zone": "Cyprus", Dhekelia: "Cyprus", Akrotiri: "Cyprus", "Åland": "Finland" };
 
-const withArt = n => (DATA[n] ? DATA[n][0] : OTHER[n]) || n;
+// Fleuves, massifs, mers et océan de France : [nom avec article, catégorie]
+const NAT = {
+  seine: ["la Seine", "fleuves"], loire: ["la Loire", "fleuves"], garonne: ["la Garonne", "fleuves"],
+  rhone: ["le Rhône", "fleuves"], rhin: ["le Rhin", "fleuves"],
+  alpes: ["les Alpes", "montagnes"], pyrenees: ["les Pyrénées", "montagnes"], central: ["le Massif central", "montagnes"],
+  jura: ["le Jura", "montagnes"], vosges: ["les Vosges", "montagnes"], armoricain: ["le Massif armoricain", "montagnes"],
+  manche: ["la Manche", "mers"], nord: ["la mer du Nord", "mers"], atlantique: ["l'océan Atlantique", "mers"],
+  med: ["la mer Méditerranée", "mers"]
+};
+const NAT_TYPE = { fleuves: "fleuve", montagnes: "massif", mers: "mer" };
+const withArt = n => (DATA[n] ? DATA[n][0] : NAT[n] ? NAT[n][0] : OTHER[n]) || n;
 const bare = n => { const s = withArt(n).replace(/^(la |le |les |l')/, ""); return s[0].toUpperCase() + s.slice(1); };
 const capital = n => DATA[n][1];
 // « de la France », « du Luxembourg », « des Pays-Bas », « d'Andorre », « de Malte »
@@ -316,19 +367,24 @@ const el = (tag, attrs, parent) => {
 };
 
 /* ---------- Réglages ---------- */
-const cfg = { mode: "pays", qtype: "ou", zone: "voisins", level: 20 };
+const cfg = { mode: "pays", qtype: "ou", zone: "voisins", cat: "tout", level: 20 };
 try { Object.assign(cfg, JSON.parse(localStorage.getItem("geo-cfg") || "{}")); } catch (_) {}
 const saveCfg = () => { try { localStorage.setItem("geo-cfg", JSON.stringify(cfg)); } catch (_) {} };
 // La clé des records garde l'ancien nom « pays » pour les voisins
-const gameKey = () => cfg.mode === "pays" ? (cfg.zone === "ue" ? "pays-ue" : "pays") : `cap-${cfg.qtype}-${cfg.zone}`;
+const gameKey = () => cfg.mode === "nature" ? `nature-${cfg.cat}`
+  : cfg.mode === "pays" ? (cfg.zone === "ue" ? "pays-ue" : "pays") : `cap-${cfg.qtype}-${cfg.zone}`;
 // En jeu « pays », la France n'est pas demandée (elle est déjà en bleu)
-const zoneList = () => cfg.zone === "voisins" ? NEIGHBORS : cfg.mode === "pays" ? EU_PLUS.filter(n => n !== "France") : EU_PLUS;
-const viewName = () => cfg.zone === "voisins" ? "voisins" : "europe";
+const zoneList = () => cfg.mode === "nature" ? Object.keys(NAT).filter(k => cfg.cat === "tout" || NAT[k][1] === cfg.cat)
+  : cfg.zone === "voisins" ? NEIGHBORS : cfg.mode === "pays" ? EU_PLUS.filter(n => n !== "France") : EU_PLUS;
+const viewName = () => cfg.mode === "nature" || cfg.zone === "voisins" ? "voisins" : "europe";
+const isUE = () => cfg.mode !== "nature" && cfg.zone === "ue";
 
 /* ---------- Carte ---------- */
-const { countries, views, capitals } = window.CARTE;
-const gLand = el("g", {}, svg), gDots = el("g", {}, svg), gCaps = el("g", {}, svg), gLabels = el("g", {}, svg);
-const shapes = {}, dots = {}, hits = [], info = {};
+const { countries, views, capitals, nature } = window.CARTE;
+const gSea = el("g", { class: "natlayer" }, svg), gLand = el("g", {}, svg),
+  gMassif = el("g", { class: "natlayer", "clip-path": "url(#landClip)" }, svg), gRiver = el("g", { class: "natlayer" }, svg),
+  gDots = el("g", { class: "dotlayer" }, svg), gCaps = el("g", {}, svg), gLabels = el("g", {}, svg);
+const shapes = {}, dots = {}, hits = [], info = {}, feats = {};
 let unit = 1, labelScale = 1; // unités SVG par pixel écran, taille du texte
 
 for (const c of countries.sort((a, b) => b.area - a.area)) {
@@ -336,6 +392,20 @@ for (const c of countries.sort((a, b) => b.area - a.area)) {
   const p = el("path", { d: c.d, class: "country" }, gLand);
   p.dataset.name = c.name;
   shapes[c.name] = p;
+}
+// Les massifs sont découpés sur les terres, pour ne pas déborder dans la mer
+const clip = el("clipPath", { id: "landClip" }, el("defs", {}, svg));
+["France", "Spain", "Andorra", "Italy", "Switzerland", "Germany", "Austria", "Slovenia", "Liechtenstein", "Monaco"].forEach((n, i) => {
+  shapes[n].id = "land-" + i;
+  el("use", { href: "#land-" + i }, clip);
+});
+// Fleuves (trait + large zone cliquable), massifs, mers
+for (const id in NAT) {
+  const f = nature[id], type = NAT_TYPE[NAT[id][1]];
+  const layer = type === "fleuve" ? gRiver : type === "massif" ? gMassif : gSea;
+  const p = el("path", { d: f.d, class: "feat " + type }, layer);
+  p.dataset.name = id; feats[id] = p;
+  if (type === "fleuve") el("path", { d: f.d, class: "riverhit" }, layer).dataset.name = id;
 }
 // Petits pays : un point visible + une grande zone cliquable autour
 for (const c of countries) {
@@ -358,7 +428,8 @@ function fitView() {
   unit = r.width && r.height ? Math.max(v[2] / r.width, v[3] / r.height) : 1;
   labelScale = viewName() === "europe" && r.width < 600 ? .8 : 1;
   for (const n in dots) dots[n].setAttribute("r", 6 * unit);
-  for (const h of hits) h.setAttribute("r", 16 * unit);
+  // Zone cliquable des petits pays plus petite sur la carte de l'Europe (sinon elle mord sur la Belgique)
+  for (const h of hits) h.setAttribute("r", (viewName() === "europe" ? 10 : 16) * unit);
   drawLabels();
 }
 function drawLabels() {
@@ -381,6 +452,10 @@ function addCountryLabel(name) {
   const o = offsets[name] || (c.p ? [0, 20] : [0, 6]);
   addLabel(bare(name), pos[0], pos[1], o[0], o[1], c.p || cfg.zone === "ue" ? 13 : 16);
 }
+function addNatLabel(id) {
+  const type = NAT_TYPE[NAT[id][1]], l = nature[id].l;
+  addLabel(withArt(id).replace(/^(la |le |les |l')/, "").replace(/^./, c => c.toUpperCase()), l[0], l[1], 0, 5, type === "mer" ? 15 : 14, type);
+}
 function addCapital(name) {
   const p = capitals[name];
   capMarks.push(p);
@@ -400,23 +475,25 @@ svg.addEventListener("click", e => {
 });
 
 function mark(name, cls) {
-  for (const node of [shapes[name], dots[name]]) {
+  for (const node of [shapes[name], dots[name], feats[name]]) {
     if (!node) continue;
     node.classList.remove(cls);
     void node.getBBox(); // relance l'animation
     node.classList.add(cls);
   }
 }
-const unmark = (name, cls) => [shapes[name], dots[name]].forEach(n => n && n.classList.remove(cls));
+const unmark = (name, cls) => [shapes[name], dots[name], feats[name]].forEach(n => n && n.classList.remove(cls));
 function resetMap() {
-  const zone = new Set(cfg.zone === "ue" ? EU_PLUS : []);
+  const zone = new Set(isUE() ? EU_PLUS : []);
+  svg.classList.toggle("nature", cfg.mode === "nature");
+  for (const id in feats) feats[id].setAttribute("class", "feat " + NAT_TYPE[NAT[id][1]]);
   for (const n in shapes) {
     const base = ALIAS[n] || n;
     shapes[n].setAttribute("class", "country" + (n === "France" ? " france" : zone.size && !zone.has(base) ? " dim" : ""));
   }
   for (const n in dots) dots[n].setAttribute("class", "dot");
   labels = []; capMarks = [];
-  if (info.France.l) labels.push({ text: "FRANCE", x: info.France.l[0], y: info.France.l[1], dx: 0, dy: 7, size: 20, cls: "france" });
+  if (cfg.mode !== "nature") labels.push({ text: "FRANCE", x: info.France.l[0], y: info.France.l[1], dx: 0, dy: 7, size: 20, cls: "france" });
   fitView();
 }
 
@@ -455,9 +532,15 @@ function refreshMenu() {
     g.querySelectorAll(".opt").forEach(b => b.classList.toggle("sel", b.dataset.v === v));
   });
   $("capOpts").hidden = cfg.mode !== "cap";
+  $("natOpts").hidden = cfg.mode !== "nature";
+  $("zoneOpts").hidden = cfg.mode === "nature";
   $("ueCount").textContent = cfg.mode === "pays" ? "27 pays (sans la France)" : "28 pays";
   const n = cfg.zone === "voisins" ? 8 : EU_PER_GAME;
-  const rules = cfg.mode === "pays"
+  const natWhat = { tout: "les <b>fleuves</b>, les <b>massifs montagneux</b>, les <b>mers</b> et l'<b>océan</b>",
+    fleuves: "les <b>5 grands fleuves</b>", montagnes: "les <b>6 massifs montagneux</b>", mers: "les <b>3 mers</b> et l'<b>océan</b>" }[cfg.cat];
+  const rules = cfg.mode === "nature"
+    ? [`Retrouve ${natWhat} de France.`, "Un nom apparaît : <b>clique dessus</b> sur la carte."]
+    : cfg.mode === "pays"
     ? [cfg.zone === "voisins" ? "La France touche <b>8 pays</b> en Europe." : `Les pays de l'<b>Union européenne</b> et le <b>Royaume-Uni</b> : ${n} pays par partie.`,
        "Un nom de pays apparaît : <b>clique dessus</b> sur la carte."]
     : cfg.qtype === "ou"
@@ -501,7 +584,7 @@ function clearHud(text) {
   $("choices").innerHTML = ""; $("timer").style.transform = "scaleX(0)";
 }
 function setTitle() {
-  $("title").textContent = cfg.mode === "pays"
+  $("title").textContent = cfg.mode === "nature" ? "🏞️ Géographie de la France" : cfg.mode === "pays"
     ? (cfg.zone === "ue" ? "🇪🇺 Les pays d'Europe" : "🇫🇷 Les voisins de la France")
     : cfg.zone === "ue" ? "🇪🇺 Capitales d'Europe" : "🏛️ Capitales des voisins";
 }
@@ -510,7 +593,7 @@ function startGame() {
   $("start").hidden = true; $("end").hidden = true; $("learnBar").hidden = true;
   setTitle(); resetMap();
   const list = shuffle(zoneList());
-  order = cfg.zone === "ue" ? list.slice(0, EU_PER_GAME) : list;
+  order = isUE() ? list.slice(0, EU_PER_GAME) : list;
   idx = 0; results = []; setScore(0);
   nextQuestion();
 }
@@ -521,7 +604,9 @@ function nextQuestion() {
   const name = order[idx];
   $("progress").textContent = `${idx + 1} / ${order.length}`;
   $("choices").innerHTML = "";
-  if (cfg.mode === "pays") {
+  if (cfg.mode === "nature") {
+    $("question").innerHTML = `Où se trouve${withArt(name).startsWith("les ") ? "nt" : ""} <b>${withArt(name)}</b> ?`;
+  } else if (cfg.mode === "pays") {
     $("question").innerHTML = `Où se trouve <b>${bare(name)}</b> ?`;
   } else if (cfg.qtype === "ou") {
     $("question").innerHTML = `Où est <b>${capital(name)}</b> ? <small>Clique sur son pays</small>`;
@@ -580,7 +665,8 @@ function success() {
   setScore(score + gained, "bump");
   results.push({ name, ok: true, tries: tries + 1 });
   unmark(name, "target"); mark(name, "found");
-  if (cfg.mode === "pays") addCountryLabel(name);
+  if (cfg.mode === "nature") addNatLabel(name);
+  else if (cfg.mode === "pays") addCountryLabel(name);
   else addCapital(name);
   sndGood();
   const extra = cfg.mode === "cap" && cfg.qtype === "ou" ? ` ${capital(name)} est la capitale ${deForm(name)}.` : "";
@@ -601,6 +687,7 @@ function onPick(name) {
   if (locked) return;
   if (cfg.mode === "cap" && cfg.qtype === "quelle") return; // on répond avec les boutons
   if (cfg.mode === "pays" && name === "France") return;
+  if (cfg.mode === "nature" && !NAT[name]) return; // clic à côté : pas de pénalité
   if (name === order[idx]) return success();
   if (!shapes[name] || !shapes[name].classList.contains("found")) mark(name, "wrong");
   let msg = `Non, ça c'est ${withArt(name)} !`;
@@ -623,7 +710,10 @@ function fail(msg) {
   results.push({ name, ok: false });
   unmark(name, "target");
   mark(name, "missed"); mark(name, "show");
-  if (cfg.mode === "pays") {
+  if (cfg.mode === "nature") {
+    addNatLabel(name);
+    toast(`${msg} Voici ${withArt(name)} 👉`, "bad", 2600);
+  } else if (cfg.mode === "pays") {
     addCountryLabel(name);
     toast(`${msg} ${bare(name)} est ici 👉`, "bad", 2600);
   } else {
@@ -649,8 +739,8 @@ function endGame() {
   if (score > best) { writeBest(score); $("bestEnd").textContent = "🏆 Nouveau record !"; }
   else $("bestEnd").textContent = `🏆 Record : ${best} pts`;
   $("recap").innerHTML = results.map(r =>
-    `<li>${r.ok ? "✅" : "❌"} ${cfg.mode === "pays" ? bare(r.name) : `${bare(r.name)} : ${capital(r.name)}`}</li>`).join("");
-  $("recap").style.gridTemplateColumns = cfg.mode === "pays" ? "1fr 1fr" : "1fr";
+    `<li>${r.ok ? "✅" : "❌"} ${cfg.mode !== "cap" ? bare(r.name) : `${bare(r.name)} : ${capital(r.name)}`}</li>`).join("");
+  $("recap").style.gridTemplateColumns = cfg.mode !== "cap" ? "1fr 1fr" : "1fr";
   if (stars === 3) beep([523, 659, 784, 1047], .18);
   setTimeout(() => { $("end").hidden = false; }, 900);
 }
@@ -662,13 +752,14 @@ function learn() {
   setTitle(); resetMap();
   const list = zoneList();
   for (const n of list) {
+    if (cfg.mode === "nature") { addNatLabel(n); continue; }
     mark(n, "found");
     if (cfg.mode === "pays") addCountryLabel(n); else addCapital(n);
   }
   $("progress").textContent = "Révision";
-  clearHud(cfg.mode === "cap" ? `Regarde bien les <b>${list.length} capitales</b> !`
+  clearHud(cfg.mode === "nature" ? "Regarde bien la carte et retiens les noms !" : cfg.mode === "cap" ? `Regarde bien les <b>${list.length} capitales</b> !`
     : cfg.zone === "voisins" ? "Regarde bien les <b>8 voisins</b> !" : `Regarde bien ces <b>${list.length} pays</b> !`);
-  $("learnText").innerHTML = cfg.mode === "cap" ? "Touche un pays : sa capitale s'affiche"
+  $("learnText").innerHTML = cfg.mode === "nature" ? "Fleuves 🌊 · Montagnes ⛰️ · Mers 🐳" : cfg.mode === "cap" ? "Touche un pays : sa capitale s'affiche"
     : cfg.zone === "voisins" ? "France + ses <b>8 voisins</b>" : "UE (27 pays) + Royaume-Uni";
   $("learnBar").hidden = false;
 }

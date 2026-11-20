@@ -1,6 +1,6 @@
 # Géo Europe 🇫🇷🇪🇺
 
-Un petit jeu web pour réviser la géographie de l'Europe : les **pays voisins de la France** et les **capitales**.
+Un petit jeu web pour réviser la géographie : les **pays** et les **capitales** d'Europe, et les **fleuves, montagnes, mers et océan** de France.
 
 ## Les jeux
 
@@ -10,8 +10,13 @@ Au menu, on choisit :
 - **🏛️ Capitales**, avec deux types de questions :
   - **📍 Où est… ?** : une capitale s'affiche (« Où est Berlin ? ») ; il faut cliquer sur son pays.
   - **🔤 Quelle capitale ?** : un pays clignote sur la carte ; il faut choisir sa capitale parmi 4 réponses (avec des pièges : Genève, Milan, Barcelone, Rotterdam, Manchester…).
+- **🏞️ Fleuves, montagnes, mers** (de France) : « Où se trouve la Loire ? », « Où se trouvent les Pyrénées ? » ; il faut cliquer dessus sur la carte.
+  - **Fleuves** : Seine, Loire, Garonne, Rhône, Rhin.
+  - **Montagnes** : Alpes, Pyrénées, Massif central, Jura, Vosges, Massif armoricain.
+  - **Mers et océan** : Manche, mer du Nord, océan Atlantique, mer Méditerranée.
+  - Ou **tout** à la fois (15 questions).
 
-Et pour chacun, deux séries :
+Pour les pays et les capitales, deux séries :
 
 - **🇫🇷 Voisins** : les 8 pays limitrophes de la France (Belgique, Luxembourg, Allemagne, Suisse, Italie, Monaco, Andorre, Espagne).
 - **🇪🇺 UE + Royaume-Uni** : les 27 pays de l'Union européenne et le Royaume-Uni (12 questions tirées au hasard par partie ; la France n'est pas demandée dans le jeu des pays).
@@ -32,4 +37,4 @@ Fonctionne sur ordinateur, tablette et téléphone (la série « Union européen
 Site statique, sans dépendance : ouvrez `index.html` dans un navigateur, ou publiez le dépôt avec GitHub Pages
 (Settings → Pages → Branch `main`, dossier `/ (root)`).
 
-Carte : Natural Earth (domaine public), via `world-atlas`.
+Carte et fleuves : Natural Earth (domaine public), via `world-atlas`. Les contours des massifs et des mers sont simplifiés, dessinés à la main.
